@@ -304,6 +304,7 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+  np->mask = p->mask;//mask进行传值
 
   release(&np->lock);
 
@@ -654,3 +655,17 @@ procdump(void)
     printf("\n");
   }
 }
+
+int nop(void)
+{
+    int cnt = 0;
+    for (struct proc* p = proc; p < &proc[NPROC];p++)
+    {
+        acquire(&p->lock);
+        if (UNUSED != p->state)
+            cnt++;
+        release(&p->lock);
+    }
+    return cnt;
+}
+

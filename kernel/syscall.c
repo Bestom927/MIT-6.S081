@@ -7,6 +7,12 @@
 #include "syscall.h"
 #include "defs.h"
 
+static const char* sysname[] = {"",
+	"fork","exit","wait","pipe","read","kill","exec","fstat","chdir",
+	"dup","getpid","sbrk","sleep","uptime","open","write","mknod",
+	"unlink","link","mkdir","close","trace"
+};
+
 // Fetch the uint64 at addr from the current process.
 int
 fetchaddr(uint64 addr, uint64 *ip)
@@ -105,6 +111,9 @@ extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
 
+extern uint64 sys_trace(void);
+extern uint64 sys_sysinfo(void);
+
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -127,6 +136,9 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+
+[SYS_trace]   sys_trace,
+[SYS_sysinfo] sys_sysinfo,
 };
 
 void
@@ -143,4 +155,11 @@ syscall(void)
             p->pid, p->name, num);
     p->trapframe->a0 = -1;
   }
+  
+  if ((1 << num) & p->mask)
+	printf("%d: syscall %s -> %d\n",p->pid,sysname[num],p->trapframe->a0);
+
 }
+
+
+
