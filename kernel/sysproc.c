@@ -1,12 +1,11 @@
 #include "types.h"
 #include "riscv.h"
+#include "param.h"
 #include "defs.h"
 #include "date.h"
-#include "param.h"
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
-#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -47,6 +46,7 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
+  
   addr = myproc()->sz;
   if(growproc(n) < 0)
     return -1;
@@ -58,6 +58,7 @@ sys_sleep(void)
 {
   int n;
   uint ticks0;
+
 
   if(argint(0, &n) < 0)
     return -1;
@@ -73,6 +74,25 @@ sys_sleep(void)
   release(&tickslock);
   return 0;
 }
+
+
+#ifdef LAB_PGTBL
+int
+sys_pgaccess(void)
+{
+	uint64 start_addr;	// 测试程序中buf的地址
+	int amount;			// ........32
+	uint64 buffer;		// ........abits的地址
+	if (argaddr(0,&start_addr) < 0 || argint(1,&amount) < 0 || 
+			argaddr(2,&buffer) < 0) //获取三个参数
+		return -1;
+	struct proc* p = myproc();
+	uint64 mask = access_check(p->pagetable,start_addr); // 页表是当前进程的页表
+	if (copyout(p->pagetable,buffer,(char*)&mask,sizeof(uint64)) < 0)
+		return -1;
+	return 0;
+}
+#endif
 
 uint64
 sys_kill(void)
@@ -96,26 +116,4 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
-
-uint64 sys_trace(void)
-{
-    int mask;
-    if (argint(0,&mask) < 0)
-        return -1;
-    myproc()->mask = mask;
-    return 0;
-}
-uint64 sys_sysinfo(void)
-{
-	uint64 addr;
-	if (argaddr(0,&addr) < 0)
-		return -1;
-	struct sysinfo sf;
-	sf.nproc = nop();//nop 后面加
-	sf.freemem = freemem();// 后面加
-	if (copyout(myproc()->pagetable,addr,(char*)&sf,sizeof(sf)) < 0)
-		return -1;
-	return 0;
-}
-
 
