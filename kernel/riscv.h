@@ -331,14 +331,6 @@ sfence_vma()
   asm volatile("sfence.vma zero, zero");
 }
 
-static inline uint64
-r_fp()
-{
-  uint64 x;
-  asm volatile("mv %0, s0" : "=r" (x) );
-  return x;
-}
-
 
 #define PGSIZE 4096 // bytes per page
 #define PGSHIFT 12  // bits of offset within a page
@@ -369,6 +361,7 @@ r_fp()
 // Sv39, to avoid having to sign-extend virtual addresses
 // that have the high bit set.
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+#define PTE_COW (1L << 8) // cow bit
 
 typedef uint64 pte_t;
 typedef uint64 *pagetable_t; // 512 PTEs

@@ -141,14 +141,6 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
-  p->interval = 0;
-  p->handler = 0;
-  p->ticks = 0;
-
-  if((p->pretrapframe = (struct trapframe *)kalloc()) == 0){
-    release(&p->lock);
-	return 0;
-  }
   return p;
 }
 
@@ -171,11 +163,6 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
-  p->interval = 0;
-  p->handler = 0;
-  p->ticks = 0;
-  if(p->pretrapframe)
-    kfree((void*)p->pretrapframe);
   p->state = UNUSED;
 }
 

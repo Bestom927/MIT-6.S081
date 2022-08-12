@@ -65,7 +65,17 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  } 
+     else if (r_scause() == 15)
+    {
+        uint64 va = r_stval();                                         // 出错的虚拟地址
+        int res = address_translation_wiht_cow_page(va, p->pagetable); // 进行地址转换
+        if (res < 0)
+        {
+            p->killed = 1;
+        }
+    }
+  else if((which_dev = devintr()) != 0){
     // ok
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
@@ -77,21 +87,9 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2) {
-    if(p->interval) {
-	  if(p->ticks == p->interval) {
-	    //p->ticks = 0;
-	    //memmove(p->pretrapframe, p->trapframe, sizeof(struct trapframe));
-	    *p->pretrapframe = *p->trapframe;
-		p->trapframe->epc = p->handler;
-	  }// else {
-	    p->ticks++;
-	  //}
-	}
+  if(which_dev == 2)
     yield();
-  }
 
-     
   usertrapret();
 }
 
