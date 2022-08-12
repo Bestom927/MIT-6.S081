@@ -126,13 +126,7 @@ found:
     release(&p->lock);
     return 0;
   }
-  
-  if (0 == (p->ucall = (struct usyscall*)kalloc()))
-  {
-	  freeproc(p);
-	  release(&p->lock);
-	  return 0;
-  }
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -141,14 +135,20 @@ found:
     return 0;
   }
 
-
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
-  p->ucall->pid = p->pid;
-  
+
+  p->interval = 0;
+  p->handler = 0;
+  p->ticks = 0;
+
+  if((p->pretrapframe = (struct trapframe *)kalloc()) == 0){
+    release(&p->lock);
+	return 0;
+  }
   return p;
 }
 
@@ -163,11 +163,6 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
-  
-  if (p->ucall)
-	  kfree((void*)p->ucall);
-  p->ucall = 0;
-  
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -176,8 +171,12 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  p->interval = 0;
+  p->handler = 0;
+  p->ticks = 0;
+  if(p->pretrapframe)
+    kfree((void*)p->pretrapframe);
   p->state = UNUSED;
-  
 }
 
 // Create a user page table for a given process,
@@ -209,13 +208,6 @@ proc_pagetable(struct proc *p)
     uvmfree(pagetable, 0);
     return 0;
   }
-      //不加 PTE_U权限，PTE只能在特权模式下使用。
-  if (mappages(pagetable,USYSCALL,PGSIZE,(uint64)(p->ucall),
-                 PTE_U | PTE_R) < 0)
-  {
-	  uvmfree(pagetable,0);
-	  return 0;
-  }
 
   return pagetable;
 }
@@ -227,7 +219,6 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
-  uvmunmap(pagetable, USYSCALL, 1, 0);
   uvmfree(pagetable, sz);
 }
 
