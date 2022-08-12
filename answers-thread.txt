@@ -1,0 +1,1 @@
+Multiple threads will access the same value without protection.
