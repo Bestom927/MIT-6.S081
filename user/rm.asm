@@ -44,8 +44,8 @@ main(int argc, char *argv[])
   38:	ff2498e3          	bne	s1,s2,28 <main+0x28>
   3c:	a80d                	j	6e <main+0x6e>
     fprintf(2, "Usage: rm files...\n");
-  3e:	00000597          	auipc	a1,0x0
-  42:	7c258593          	addi	a1,a1,1986 # 800 <malloc+0xea>
+  3e:	00001597          	auipc	a1,0x1
+  42:	84a58593          	addi	a1,a1,-1974 # 888 <statistics+0x8c>
   46:	4509                	li	a0,2
   48:	00000097          	auipc	ra,0x0
   4c:	5e8080e7          	jalr	1512(ra) # 630 <fprintf>
@@ -55,8 +55,8 @@ main(int argc, char *argv[])
   56:	292080e7          	jalr	658(ra) # 2e4 <exit>
       fprintf(2, "rm: %s failed to delete\n", argv[i]);
   5a:	6090                	ld	a2,0(s1)
-  5c:	00000597          	auipc	a1,0x0
-  60:	7bc58593          	addi	a1,a1,1980 # 818 <malloc+0x102>
+  5c:	00001597          	auipc	a1,0x1
+  60:	84458593          	addi	a1,a1,-1980 # 8a0 <statistics+0xa4>
   64:	4509                	li	a0,2
   66:	00000097          	auipc	ra,0x0
   6a:	5ca080e7          	jalr	1482(ra) # 630 <fprintf>
@@ -760,7 +760,7 @@ printint(int fd, int xx, int base, int sgn)
     buf[i++] = digits[x % base];
  3c6:	2601                	sext.w	a2,a2
  3c8:	00000517          	auipc	a0,0x0
- 3cc:	4d050513          	addi	a0,a0,1232 # 898 <digits>
+ 3cc:	55850513          	addi	a0,a0,1368 # 920 <digits>
  3d0:	883a                	mv	a6,a4
  3d2:	2705                	addiw	a4,a4,1
  3d4:	02c5f7bb          	remuw	a5,a1,a2
@@ -859,7 +859,7 @@ vprintf(int fd, const char *fmt, va_list ap)
  482:	02500a13          	li	s4,37
  486:	4c55                	li	s8,21
  488:	00000c97          	auipc	s9,0x0
- 48c:	3b8c8c93          	addi	s9,s9,952 # 840 <malloc+0x12a>
+ 48c:	440c8c93          	addi	s9,s9,1088 # 8c8 <statistics+0xcc>
         printptr(fd, va_arg(ap, uint64));
       } else if(c == 's'){
         s = va_arg(ap, char*);
@@ -871,7 +871,7 @@ vprintf(int fd, const char *fmt, va_list ap)
  494:	4d41                	li	s10,16
     putc(fd, digits[x >> (sizeof(uint64) * 8 - 4)]);
  496:	00000b97          	auipc	s7,0x0
- 49a:	402b8b93          	addi	s7,s7,1026 # 898 <digits>
+ 49a:	48ab8b93          	addi	s7,s7,1162 # 920 <digits>
  49e:	a839                	j	4bc <vprintf+0x6a>
         putc(fd, c);
  4a0:	85ca                	mv	a1,s2
@@ -1001,7 +1001,7 @@ vprintf(int fd, const char *fmt, va_list ap)
  5ba:	bde5                	j	4b2 <vprintf+0x60>
           s = "(null)";
  5bc:	00000997          	auipc	s3,0x0
- 5c0:	27c98993          	addi	s3,s3,636 # 838 <malloc+0x122>
+ 5c0:	30498993          	addi	s3,s3,772 # 8c0 <statistics+0xc4>
         while(*s != 0){
  5c4:	85ee                	mv	a1,s11
  5c6:	bff9                	j	5a4 <vprintf+0x152>
@@ -1137,7 +1137,7 @@ free(void *ap)
  69a:	ff050693          	addi	a3,a0,-16
   for(p = freep; !(bp > p && bp < p->s.ptr); p = p->s.ptr)
  69e:	00000797          	auipc	a5,0x0
- 6a2:	2127b783          	ld	a5,530(a5) # 8b0 <freep>
+ 6a2:	2c27b783          	ld	a5,706(a5) # 960 <freep>
  6a6:	a02d                	j	6d0 <free+0x3c>
     if(p >= p->s.ptr && (bp > p || bp < p->s.ptr))
       break;
@@ -1193,7 +1193,7 @@ free(void *ap)
     p->s.ptr = bp;
   freep = p;
  708:	00000717          	auipc	a4,0x0
- 70c:	1af73423          	sd	a5,424(a4) # 8b0 <freep>
+ 70c:	24f73c23          	sd	a5,600(a4) # 960 <freep>
 }
  710:	6422                	ld	s0,8(sp)
  712:	0141                	addi	sp,sp,16
@@ -1228,7 +1228,7 @@ malloc(uint nbytes)
  738:	0485                	addi	s1,s1,1
   if((prevp = freep) == 0){
  73a:	00000517          	auipc	a0,0x0
- 73e:	17653503          	ld	a0,374(a0) # 8b0 <freep>
+ 73e:	22653503          	ld	a0,550(a0) # 960 <freep>
  742:	c515                	beqz	a0,76e <malloc+0x58>
     base.s.ptr = freep = prevp = &base;
     base.s.size = 0;
@@ -1253,15 +1253,15 @@ malloc(uint nbytes)
     }
     if(p == freep)
  762:	00000917          	auipc	s2,0x0
- 766:	14e90913          	addi	s2,s2,334 # 8b0 <freep>
+ 766:	1fe90913          	addi	s2,s2,510 # 960 <freep>
   if(p == (char*)-1)
  76a:	5afd                	li	s5,-1
  76c:	a895                	j	7e0 <malloc+0xca>
     base.s.ptr = freep = prevp = &base;
  76e:	00000797          	auipc	a5,0x0
- 772:	14a78793          	addi	a5,a5,330 # 8b8 <base>
+ 772:	1fa78793          	addi	a5,a5,506 # 968 <base>
  776:	00000717          	auipc	a4,0x0
- 77a:	12f73d23          	sd	a5,314(a4) # 8b0 <freep>
+ 77a:	1ef73523          	sd	a5,490(a4) # 960 <freep>
  77e:	e39c                	sd	a5,0(a5)
     base.s.size = 0;
  780:	0007a423          	sw	zero,8(a5)
@@ -1280,7 +1280,7 @@ malloc(uint nbytes)
  79a:	0137a423          	sw	s3,8(a5)
       freep = prevp;
  79e:	00000717          	auipc	a4,0x0
- 7a2:	10a73923          	sd	a0,274(a4) # 8b0 <freep>
+ 7a2:	1ca73123          	sd	a0,450(a4) # 960 <freep>
       return (void*)(p + 1);
  7a6:	01078513          	addi	a0,a5,16
       if((p = morecore(nunits)) == 0)
@@ -1329,3 +1329,77 @@ malloc(uint nbytes)
         return 0;
  7f8:	4501                	li	a0,0
  7fa:	bf45                	j	7aa <malloc+0x94>
+
+00000000000007fc <statistics>:
+#include "kernel/fcntl.h"
+#include "user/user.h"
+
+int
+statistics(void *buf, int sz)
+{
+ 7fc:	7179                	addi	sp,sp,-48
+ 7fe:	f406                	sd	ra,40(sp)
+ 800:	f022                	sd	s0,32(sp)
+ 802:	ec26                	sd	s1,24(sp)
+ 804:	e84a                	sd	s2,16(sp)
+ 806:	e44e                	sd	s3,8(sp)
+ 808:	e052                	sd	s4,0(sp)
+ 80a:	1800                	addi	s0,sp,48
+ 80c:	8a2a                	mv	s4,a0
+ 80e:	892e                	mv	s2,a1
+  int fd, i, n;
+  
+  fd = open("statistics", O_RDONLY);
+ 810:	4581                	li	a1,0
+ 812:	00000517          	auipc	a0,0x0
+ 816:	12650513          	addi	a0,a0,294 # 938 <digits+0x18>
+ 81a:	00000097          	auipc	ra,0x0
+ 81e:	b0a080e7          	jalr	-1270(ra) # 324 <open>
+  if(fd < 0) {
+ 822:	04054263          	bltz	a0,866 <statistics+0x6a>
+ 826:	89aa                	mv	s3,a0
+      fprintf(2, "stats: open failed\n");
+      exit(1);
+  }
+  for (i = 0; i < sz; ) {
+ 828:	4481                	li	s1,0
+ 82a:	03205063          	blez	s2,84a <statistics+0x4e>
+    if ((n = read(fd, buf+i, sz-i)) < 0) {
+ 82e:	4099063b          	subw	a2,s2,s1
+ 832:	009a05b3          	add	a1,s4,s1
+ 836:	854e                	mv	a0,s3
+ 838:	00000097          	auipc	ra,0x0
+ 83c:	ac4080e7          	jalr	-1340(ra) # 2fc <read>
+ 840:	00054563          	bltz	a0,84a <statistics+0x4e>
+      break;
+    }
+    i += n;
+ 844:	9ca9                	addw	s1,s1,a0
+  for (i = 0; i < sz; ) {
+ 846:	ff24c4e3          	blt	s1,s2,82e <statistics+0x32>
+  }
+  close(fd);
+ 84a:	854e                	mv	a0,s3
+ 84c:	00000097          	auipc	ra,0x0
+ 850:	ac0080e7          	jalr	-1344(ra) # 30c <close>
+  return i;
+}
+ 854:	8526                	mv	a0,s1
+ 856:	70a2                	ld	ra,40(sp)
+ 858:	7402                	ld	s0,32(sp)
+ 85a:	64e2                	ld	s1,24(sp)
+ 85c:	6942                	ld	s2,16(sp)
+ 85e:	69a2                	ld	s3,8(sp)
+ 860:	6a02                	ld	s4,0(sp)
+ 862:	6145                	addi	sp,sp,48
+ 864:	8082                	ret
+      fprintf(2, "stats: open failed\n");
+ 866:	00000597          	auipc	a1,0x0
+ 86a:	0e258593          	addi	a1,a1,226 # 948 <digits+0x28>
+ 86e:	4509                	li	a0,2
+ 870:	00000097          	auipc	ra,0x0
+ 874:	dc0080e7          	jalr	-576(ra) # 630 <fprintf>
+      exit(1);
+ 878:	4505                	li	a0,1
+ 87a:	00000097          	auipc	ra,0x0
+ 87e:	a6a080e7          	jalr	-1430(ra) # 2e4 <exit>
