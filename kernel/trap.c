@@ -5,7 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
-
+#include<sys/mman.h>
 struct spinlock tickslock;
 uint ticks;
 
@@ -27,6 +27,48 @@ void
 trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
+}
+
+int findmap1(uint64 addr)
+{
+  struct proc *p = myproc();
+  int i;
+  for(i=0;i<16;i++)
+  {
+    uint64 a=p->map_region[i].mmapaddr;
+    uint64 b=p->map_region[i].mmapend;
+    if(addr>=a && addr<b){
+      return i;
+    }   
+  }
+  return -1;
+}
+uint64
+mmapalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int prot)
+{
+  char *mem;
+  uint64 a;
+
+  if(newsz < oldsz)
+    return oldsz;
+
+  //oldsz = PGROUNDUP(oldsz);
+  for(a = oldsz; a < newsz; a += PGSIZE){
+    //printf("maphere\n");
+    mem = kalloc();
+    if(mem == 0){
+      uvmdealloc(pagetable, a, oldsz);
+      return 0;
+    }
+    memset(mem, 0, PGSIZE);
+
+    if(mappages(pagetable, a, PGSIZE, (uint64)mem, prot) != 0){
+      kfree(mem);
+      uvmdealloc(pagetable, a, oldsz);
+      return 0;
+    }
+  }
+  return newsz;
 }
 
 //
@@ -67,7 +109,44 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
+  } 
+  else if(r_scause()==13||r_scause()==15)
+  {
+    uint64 stval=r_stval();
+    
+    //找到stval在哪个map区域里面    
+    int idx=findmap1(stval);
+   
+    if(idx>=0)
+    {
+      int PTEword=PTE_U;
+      int prot=(p->map_region[idx]).mmprot;
+      uint64 length=(p->map_region[idx]).mmlength;
+      //设置关键字
+      if(prot&PROT_READ)
+        PTEword|=PTE_R;
+      if(prot&PROT_WRITE)
+        PTEword|=PTE_W;      
+      if(prot&PROT_EXEC)
+        PTEword|=PTE_X;      
+      
+      uint64 sz=(p->map_region[idx]).mmapaddr;
+      uint64 newsz=(p->map_region[idx]).mmapend;
+      if((newsz=mmapalloc(p->pagetable, sz, newsz,PTEword))==0){
+        printf("allocate error");
+      }
+      
+      struct inode* ip=p->map_region[idx].ip;
+      ilock(ip);
+      readi(ip,1,(p->map_region[idx]).mmapaddr,0,length);
+      iunlock(ip);
+      
+    } 
+    else{
+      p->killed = 1;	//没找到vma务必记得kill进程
+    }  
+  }
+  else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;

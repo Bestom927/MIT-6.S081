@@ -1,3 +1,15 @@
+#define VMASIZE 16
+typedef struct vma{
+  struct file* mmapfile;	//mmap()函数打开的文件的指针
+  struct inode* ip;			//指向上述文件的inode
+  uint64 mmapaddr;			//mmap()分配的映射起始地址
+  uint64 mmapend;			//映射结束的位置
+  uint64 mmlength;			//映射的剩余长度。注意这个值是会变化的
+  int mmprot;				//mmap()参数里指定的prot
+  int mmflag;				//mmap()参数里指定的flag
+  int valid;				//该项是否空闲。若不空闲则置为1，反之置为0
+}vma;
+
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;
@@ -105,4 +117,6 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  
+  struct vma map_region[VMASIZE];     // vma of file system
 };

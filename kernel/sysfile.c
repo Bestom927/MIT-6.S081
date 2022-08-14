@@ -289,7 +289,7 @@ sys_open(void)
   char path[MAXPATH];
   int fd, omode;
   struct file *f;
-  struct inode *ip, *oldip;
+  struct inode *ip;
   int n;
 
   if((n = argstr(0, path, MAXPATH)) < 0 || argint(1, &omode) < 0)
@@ -321,25 +321,7 @@ sys_open(void)
     end_op();
     return -1;
   }
-  
-  int cnt = 0;
-  while(ip->type == T_SYMLINK && cnt < 10 && !(omode & O_NOFOLLOW)){
-      oldip = ip;
-      if(readi(ip,0,(uint64)path,0,ip->size) != ip->size || (ip = namei(path)) == 0){
-          iunlockput(oldip);
-          end_op();
-          return -1;
-      }
-      iunlockput(oldip);
-      ilock(ip);
-      cnt++;
-  }
 
-  if(cnt == 10){
-      iunlockput(ip);
-      end_op();
-      return -1;
-  }
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
     if(f)
       fileclose(f);
@@ -502,26 +484,103 @@ sys_pipe(void)
   }
   return 0;
 }
-
-uint64
-sys_symlink(void){
-    char target[MAXPATH], path[MAXPATH];
-    struct inode *ip;
-
-    if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0)
-        return -1;
-
-    begin_op();
-    if((ip = create(path,T_SYMLINK,0,0)) == 0){
-        end_op();
-        return -1;
+static int
+mapalloc()
+{
+  int i;
+  struct proc *p = myproc();
+  for(i = 0; i < NOFILE; i++){
+    if(p->map_region[i].valid == 0){
+      p->map_region[i].valid=1;
+      return i;
     }
-
-    if(writei(ip, 0, (uint64)target, 0, strlen(target)) != strlen(target)){
-        end_op();
-        return -1;
-    }
-    end_op();
-    iunlockput(ip);
-    return 0;
+  }
+  return -1;
 }
+int findmap(uint64 addr)
+{
+  struct proc *p = myproc();
+  int i;
+  for(i=0;i<16;i++)
+  {
+    uint64 a=p->map_region[i].mmapaddr;
+    uint64 b=p->map_region[i].mmapend;
+    if(addr>=a && addr<b){
+      return i;
+    }   
+  }
+  return -1;
+}
+
+uint64 sys_mmap(void)
+{
+  struct proc *p = myproc();
+  //传入参数
+  uint64 fail=(uint64)((char*)-1);
+  uint64 addr;
+  uint64 length=p->trapframe->a1;
+  int prot=p->trapframe->a2;
+  int flags=p->trapframe->a3;
+  int fd=p->trapframe->a4;
+
+  //检查打开的文件。如果是read-only文件开启了MAP_SHARED，则必须返回错误
+  if((p->ofile[fd]->writable)==0 && (flags&MAP_SHARED)&&(prot&PROT_WRITE)){
+    return fail;
+  }
+
+  //在map_region里面找到一个空位
+  int idx=mapalloc();
+  //printf("%d idx\n",idx);
+  //初始化
+  p->map_region[idx].mmlength=length;
+  p->map_region[idx].mmprot=prot;
+  p->map_region[idx].mmflag=flags;
+  p->map_region[idx].mmapfile=p->ofile[fd];
+  p->map_region[idx].ip=p->ofile[fd]->ip;
+  //file ref++
+  filedup(p->ofile[fd]);
+
+  //寻找一个地址
+  addr=PGROUNDUP(p->sz);
+  p->sz+=PGROUNDUP(length);
+  //p确定mmap的范围
+  p->map_region[idx].mmapaddr=addr;
+  p->map_region[idx].mmapend=addr+PGROUNDUP(length);
+  //printf("mmap range %p---%p\n",p->map_region[idx].mmapaddr,p->map_region[idx].mmapend);
+  return addr;
+}
+
+uint64 sys_munmap(void)
+{
+  struct proc *p = myproc();
+  uint64 addr=p->trapframe->a0;
+  uint64 length=p->trapframe->a1;
+  //printf("unmap %p:addr %p:length\n",addr,length);
+  int idx=findmap(addr);
+  if(idx<0)
+  {
+    return -1;
+  }
+  int npages=PGROUNDUP(length)/PGSIZE;
+  //如果设置了MAP_SHARED
+  if(p->map_region[idx].mmflag & MAP_SHARED)
+  {
+    //printf("reach here1\n");
+    filewrite(p->map_region[idx].mmapfile, addr, length);
+  }
+  //printf("reach here2\n");
+  uvmunmap(p->pagetable,addr,npages,1);
+
+  p->map_region[idx].mmlength-=length;
+  if(p->map_region[idx].mmlength==0)
+  {
+    fileclose(p->map_region[idx].mmapfile);
+  //清除表项
+    memset((void*)&p->map_region[idx],0,sizeof(vma));
+  }
+
+  return 0;
+}
+
+
+
